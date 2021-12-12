@@ -13,12 +13,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollectionData } from 'react-firebase-hooks/firestore';
 
 const fb = initializeApp({
-  apiKey: "AIzaSyD2M5wCyWvJ5tK38j1WXYyRX9GE9MC5QuU",
-  authDomain: "chat-aja-f795f.firebaseapp.com",
-  projectId: "chat-aja-f795f",
-  storageBucket: "chat-aja-f795f.appspot.com",
-  messagingSenderId: "228961367030",
-  appId: "1:228961367030:web:70c3866e45e39783494dd7"
+  //initialize firebase here
 });
 
 const db = getFirestore();
@@ -42,7 +37,8 @@ function App() {
   const [userActive] = useAuthState(auth);
   const [btnVisible, setBtnVisible] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  getToken(messaging, {vapidKey: "BNhi_sjkQHeYH4StPbfkYBZj7UW1zzOj1vdTJfSOUltiUEAdKPB1zygNFgi11ykMwq4UxUDeDox4tgvZhDIJDi0"})
+
+  getToken(messaging, {vapidKey: ""}) //your vapidKey from firebase cloud message
   .then((currToken) => {
     if (currToken) {
       // Send the token to your server and update the UI if necessary
@@ -55,6 +51,7 @@ function App() {
     }
   })
   .catch(err => console.log('error', err));
+
   onMessage(messaging, (payload) => {
     console.log('Message received. ', payload);
     // ...
@@ -91,6 +88,7 @@ function App() {
     // Hide the button
     setBtnVisible(false)
   }
+  
   return (
     <div className="App">
       <header className="App-header">
