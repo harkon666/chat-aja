@@ -167,6 +167,7 @@ function ChatRoom() {
   const sendImage = async (e) => {
     e.preventDefault();
     const inputFile = e.target.files[0];
+    console.log(e.target.files[0])
     const fileFormat = inputFile.name.slice(inputFile.name.length - 4).toLowerCase();
     if (fileFormat === '.png' || fileFormat === '.jpg' || fileFormat === 'jpeg' ) {
       const storageRef = ref(storage, inputFile.name + new Date().getTime());
@@ -174,7 +175,7 @@ function ChatRoom() {
       data.append('files',inputFile)
       await uploadBytes(storageRef, inputFile);
       let imageURL = '';
-      await getDownloadURL(storageRef);
+      await getDownloadURL(storageRef).then(url => imageURL = url);
       sendMessage(imageURL)(e);
     } else {
       console.log('harus input gambar')
@@ -185,6 +186,8 @@ function ChatRoom() {
     e.preventDefault();
     inputRef.current.click()
   }
+
+  console.log(messages, 'woi')
   return (<>
     <main>
 
