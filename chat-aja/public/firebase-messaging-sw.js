@@ -9,12 +9,7 @@ importScripts("https://www.gstatic.com/firebasejs/8.2.0/firebase-messaging.js");
 
 
 const fb = firebase.initializeApp({
-  apiKey: "AIzaSyD2M5wCyWvJ5tK38j1WXYyRX9GE9MC5QuU",
-  authDomain: "chat-aja-f795f.firebaseapp.com",
-  projectId: "chat-aja-f795f",
-  storageBucket: "chat-aja-f795f.appspot.com",
-  messagingSenderId: "228961367030",
-  appId: "1:228961367030:web:70c3866e45e39783494dd7"
+  //initialize here
 });
 
 const messaging = firebase.messaging(fb);

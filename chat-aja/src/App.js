@@ -1,9 +1,10 @@
 /* eslint-disable no-restricted-globals */
 import React, { useRef, useState, useEffect } from 'react';
 import './App.css';
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+// import { getMessaging } from "firebase/messaging";
 import { initializeApp } from 'firebase/app';
-import { collection, getFirestore, query, orderBy, setDoc, doc, Timestamp, enableIndexedDbPersistence  } from 'firebase/firestore';
+import { collection, getFirestore, query, orderBy, setDoc, doc, Timestamp, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getMessaging, onMessage, getToken } from "firebase/messaging";
 import { getStorage, ref, uploadBytes, getDownloadURL  } from "firebase/storage";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import 'firebase/firestore';
@@ -12,53 +13,41 @@ import 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollectionData } from 'react-firebase-hooks/firestore';
 
-const fb = initializeApp({
-  //initialize firebase here
+import SignIn from './components/SignIn';
+import SignOut from './components/SignOut';
+import ChatMessage from './components/ChatMessage';
+
+initializeApp({
+  //initialize here
 });
 
 const db = getFirestore();
-const messaging = getMessaging(fb);
+enableIndexedDbPersistence(db).catch(e => console.log(e))
+
 const auth = getAuth();
 
-enableIndexedDbPersistence(db)
-  .catch((err) => {
-      if (err.code === 'failed-precondition') {
-          // Multiple tabs open, persistence can only be enabled
-          // in one tab at a a time.
-          // ...
-      } else if (err.code === 'unimplemented') {
-          // The current browser does not support all of the
-          // features required to enable persistence
-          // ...
-      }
-  });
+const messaging = getMessaging();
+getToken(messaging, { vapidKey: '<your_vapid_key>' }).then((currentToken) => {
+  if (currentToken) {
+    // Send the token to your server and update the UI if necessary
+    // ...
+  } else {
+    // Show permission request UI
+    console.log('No registration token available. Request permission to generate one.');
+    // ...
+  }
+}).catch((err) => {
+  console.log('An error occurred while retrieving token. ', err);
+  // ...
+});
+onMessage(messaging);
 
 function App() {
   const [userActive] = useAuthState(auth);
   const [btnVisible, setBtnVisible] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
 
-  getToken(messaging, {vapidKey: ""}) //your vapidKey from firebase cloud message
-  .then((currToken) => {
-    if (currToken) {
-      // Send the token to your server and update the UI if necessary
-      // ...
-      console.log("anjai nemu token", currToken)
-    } else {
-      // Show permission request UI
-      console.log('No registration token available. Request permission to generate one.');
-      // ...
-    }
-  })
-  .catch(err => console.log('error', err));
-
-  onMessage(messaging, (payload) => {
-    console.log('Message received. ', payload);
-    // ...
-  });
-
   useEffect(() => {
-    console.log("Listening for Install prompt");
     window.addEventListener('beforeinstallprompt',e=>{
       // For older browsers
       e.preventDefault();
@@ -70,7 +59,7 @@ function App() {
       }
       // Set the state variable to make button visible
       setBtnVisible(true);
-    })
+    });
   })
 
   const installApp = async () => {
@@ -88,64 +77,38 @@ function App() {
     // Hide the button
     setBtnVisible(false)
   }
-  
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src="../manifest-icon-192.maskable.png" alt="logo"/>
-        Chat Aja
-        {btnVisible && <button onClick={installApp}>download</button>}
-        <SignOut />
-      </header>
-      <section>
-        { userActive ? <ChatRoom /> : <SignIn />}
-      </section>
-    </div>
-  );
-}
-
-function SignIn() {
 
   const signInWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     signInWithPopup(auth, provider)
     .then((result) => {
       // This gives you a Google Access Token. You can use it to access the Google API.
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential.accessToken;
-      // The signed-in user info.
-      const user = result.user;
-      console.log(token, user)
+      GoogleAuthProvider.credentialFromResult(result);
       // ...
     }).catch((error) => {
       // Handle Errors here.
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      // The email of the user's account used.
-      const email = error.email;
-      // The AuthCredential type that was used.
-      const credential = GoogleAuthProvider.credentialFromError(error);
-      console.log(errorCode, errorMessage, email, credential)
+      GoogleAuthProvider.credentialFromError(error);
       // ...
     });
   }
 
-  return (
-    <button onClick={signInWithGoogle}>
-      Sign in with Google
-    </button>
-  )
-}
-
-function SignOut() {
   const signOut = () => {
-    auth.signOut().then(value => console.log(value)).catch(err => console.log(err))
+    auth.signOut();
   }
-  return auth.currentUser && (
-    <button onClick={signOut}>
-      Sign Out
-    </button>
-  )
+
+  return (
+    <div className="App">
+      <header className="App-header">
+        <img src="/manifest-icon-192.maskable.png" alt="logo"/>
+        Chat Aja
+        {btnVisible && <button onClick={installApp}>download</button>}
+        <SignOut signOut={signOut} auth={auth} />
+      </header>
+      <section>
+        { userActive ? <ChatRoom /> : <SignIn signInWithGoogle={signInWithGoogle} />}
+      </section>
+    </div>
+  );
 }
 
 function ChatRoom() {
@@ -156,10 +119,9 @@ function ChatRoom() {
   const storage = getStorage();
 
   const [messages] = useCollectionData(q, { idField: 'id' });
-  console.log(messages)
   useEffect(() => {
     if (messages) {
-      if (auth.currentUser.uid !== messages[messages.length -1].uid) {
+      if (auth?.currentUser?.uid !== messages[messages.length -1]?.uid) {
         if (!("Notification" in window)) {
           alert("This browser does not support desktop notification");
         }
@@ -204,18 +166,15 @@ function ChatRoom() {
 
   const sendImage = async (e) => {
     e.preventDefault();
-    console.log(e.target.files[0])
     const inputFile = e.target.files[0];
     const fileFormat = inputFile.name.slice(inputFile.name.length - 4).toLowerCase();
     if (fileFormat === '.png' || fileFormat === '.jpg' || fileFormat === 'jpeg' ) {
       const storageRef = ref(storage, inputFile.name + new Date().getTime());
       let data = new FormData();
       data.append('files',inputFile)
-      await uploadBytes(storageRef, inputFile).then((snapshot) => {
-        console.log('Uploaded a blob or file!', snapshot);
-      });
+      await uploadBytes(storageRef, inputFile);
       let imageURL = '';
-      await getDownloadURL(storageRef).then(url => imageURL = url);
+      await getDownloadURL(storageRef);
       sendMessage(imageURL)(e);
     } else {
       console.log('harus input gambar')
@@ -229,7 +188,7 @@ function ChatRoom() {
   return (<>
     <main>
 
-      {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+      {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} auth={auth} />)}
 
       <span ref={dummy}></span>
 
@@ -248,20 +207,6 @@ function ChatRoom() {
       </button>
 
     </form>
-  </>)
-}
-
-function ChatMessage(props) {
-  const { text, uid, photoURL, attachment } = props.message;
-
-  const messageClass = uid === auth.currentUser.uid ? 'sent' : 'received';
-
-  return (<>
-    <div className={`message ${messageClass}`}>
-      <img alt="PP" src={photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} />
-      {!attachment && <p>{text}</p>}
-      {attachment && <p><img className="attachment" src={attachment} alt="attachment" /></p>}
-    </div>
   </>)
 }
 
